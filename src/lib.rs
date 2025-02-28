@@ -1,10 +1,77 @@
 use std::collections::VecDeque;
+use std::cmp::Reverse;
 
 
 pub struct Solution;
 
 
 impl Solution {
+    pub fn maximum_value_sum(board: Vec<Vec<i32>>) -> i64 {
+        let n = board.len();
+        let m = board[0].len();
+
+        // Convert the board into a vector of vectors of pairs (value, column index)
+        let mut nums: Vec<Vec<(i32, usize)>> = board
+            .into_iter()
+            .map(|row| {
+                let mut row_pairs: Vec<(i32, usize)> = row
+                    .into_iter()
+                    .enumerate()
+                    .map(|(j, val)| (val, j))
+                    .collect();
+                // Sort in descending order and keep only the top 3
+                row_pairs.sort_by_key(|&(val, _)| Reverse(val));
+                row_pairs.truncate(3);
+                row_pairs
+            })
+            .collect();
+
+        // Initialize the DP table with None (uncomputed)
+        let mut dp = vec![vec![vec![vec![None; 3]; m + 2]; m + 2]; n];
+
+        // Recursive function with memoization
+        fn find(
+            nums: &Vec<Vec<(i32, usize)>>,
+            index: usize,
+            col1: i32,
+            col2: i32,
+            k: usize,
+            dp: &mut Vec<Vec<Vec<Vec<Option<i64>>>>>,
+        ) -> i64 {
+            if index >= nums.len() || k >= 3 {
+                return if k == 3 { 0 } else { -1_000_000_000_000 }; // Use a large negative value within the valid range
+            }
+
+            // Adjust col1 and col2 for 0-based indexing
+            let col1_adj = (col1 + 1) as usize;
+            let col2_adj = (col2 + 1) as usize;
+
+            // Check if the result is already computed
+            if let Some(result) = dp[index][col1_adj][col2_adj][k] {
+                return result;
+            }
+
+            let mut ans = -1_000_000_000_000; // Use a large negative value within the valid range
+
+            // Iterate over the top 3 values in the current row
+            for &(val, col) in &nums[index] {
+                if index == 0 || (col as i32 != col1 && col as i32 != col2) {
+                    let current_sum = val as i64 + find(nums, index + 1, col as i32, col1, k + 1, dp);
+                    ans = ans.max(current_sum);
+                }
+            }
+
+            // Skip the current row
+            ans = ans.max(find(nums, index + 1, col1, col2, k, dp));
+
+            // Store the result in the DP table
+            dp[index][col1_adj][col2_adj][k] = Some(ans);
+            ans
+        }
+
+        // Start the recursive function
+        find(&nums, 0, -1, -1, 0, &mut dp)
+    }
     pub fn strong_password_checker(password: String) -> i32 {
         let n = password.len();
         let mut missing_types = 3;
